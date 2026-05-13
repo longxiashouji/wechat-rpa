@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>微信 RPA 控制台</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #333; }
+
+    .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+
+    .header { background: linear-gradient(135deg, #2c3e50, #1a252f); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+    .header h1 { font-size: 24px; margin-bottom: 5px; }
+    .header .status { font-size: 14px; opacity: 0.8; }
+
+    .card { background: white; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .card h2 { font-size: 18px; margin-bottom: 15px; color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+
+    .form-group { margin-bottom: 15px; }
+    .form-group label { display: block; margin-bottom: 5px; font-weight: 600; color: #555; }
+    .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+    .form-group input:focus, .form-group textarea:focus, .form-group select:focus { outline: none; border-color: #3498db; }
+
+    .btn { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; transition: all 0.3s; }
+    .btn-primary { background: #3498db; color: white; }
+    .btn-primary:hover { background: #2980b9; }
+    .btn-success { background: #27ae60; color: white; }
+    .btn-success:hover { background: #1e8449; }
+    .btn-danger { background: #e74c3c; color: white; }
+    .btn-danger:hover { background: #c0392b; }
+    .btn-secondary { background: #95a5a6; color: white; }
+    .btn-secondary:hover { background: #7f8c8d; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+    .result { margin-top: 15px; padding: 15px; border-radius: 4px; display: none; }
+    .result.show { display: block; }
+    .result.success { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+    .result.error { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+    .result.info { background: #d1ecf1; border: 1px solid #bee5eb; color: #0c5464; }
+
+    .status-indicator { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; }
+    .status-indicator.online { background: #27ae60; }
+    .status-indicator.offline { background: #e74c3c; }
+    .status-indicator.busy { background: #f39c12; }
+
+    .log-container { max-height: 300px; overflow-y: auto; background: #1e1e1e; color: #d4d4d4; padding: 15px; border-radius: 4px; font-family: 'Consolas', monospace; font-size: 13px; }
+    .log-entry { margin-bottom: 5px; padding: 3px 0; border-bottom: 1px solid #333; }
+    .log-time { color: #888; margin-right: 10px; }
+    .log-info { color: #4ec9b0; }
+    .log-warn { color: #dcdcaa; }
+    .log-error { color: #f14c4c; }
+
+    .tabs { display: flex; gap: 5px; margin-bottom: 20px; }
+    .tab { padding: 10px 20px; background: #ddd; border: none; border-radius: 4px 4px 0 0; cursor: pointer; transition: all 0.3s; }
+    .tab.active { background: white; font-weight: 600; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    .toggle-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee; }
+    .toggle-row:last-child { border-bottom: none; }
+    .toggle { width: 50px; height: 26px; background: #ccc; border-radius: 13px; cursor: pointer; position: relative; transition: all 0.3s; }
+    .toggle.on { background: #3498db; }
+    .toggle::after { content: ''; position: absolute; width: 22px; height: 22px; background: white; border-radius: 50%; top: 2px; left: 2px; transition: all 0.3s; }
+    .toggle.on::after { left: 26px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🛰️ 微信 RPA 控制台</h1>
+      <div class="status">
+        <span class="status-indicator offline" id="statusIndicator"></span>
+        <span id="statusText">检查中...</span>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="send">📤 发送消息</button>
+      <button class="tab" data-tab="contacts">👥 通讯录</button>
+      <button class="tab" data-tab="features">⚙️ AI 功能</button>
+      <button class="tab" data-tab="logs">📋 操作日志</button>
+    </div>
+
+    <!-- 发送消息 -->
+    <div class="tab-content active" id="tab-send">
+      <div class="card">
+        <h2>发送文本消息</h2>
+        <div class="form-group">
+          <label>接收人（备注名/昵称/微信号）</label>
+          <input type="text" id="msgUser" placeholder="输入联系人名称">
+        </div>
+        <div class="form-group">
+          <label>消息内容</label>
+          <textarea id="msgContent" rows="3" placeholder="输入要发送的消息"></textarea>
+        </div>
+        <button class="btn btn-primary" onclick="sendMessage()">发送消息</button>
+        <button class="btn btn-secondary" onclick="sendFile()">发送文件</button>
+        <div class="result" id="msgResult"></div>
+      </div>
+
+      <div class="card">
+        <h2>发布朋友圈</h2>
+        <div class="form-group">
+          <label>文本内容</label>
+          <textarea id="momentContent" rows="3" placeholder="输入朋友圈文字内容"></textarea>
+        </div>
+        <div class="form-group">
+          <label>图片路径（可选，每行一个路径）</label>
+          <textarea id="momentFiles" rows="2" placeholder="C:\images\photo1.jpg&#10;C:\images\photo2.jpg"></textarea>
+        </div>
+        <button class="btn btn-primary" onclick="postMoment()">发布朋友圈</button>
+        <div class="result" id="momentResult"></div>
+      </div>
+    </div>
+
+    <!-- 通讯录 -->
+    <div class="tab-content" id="tab-contacts">
+      <div class="card">
+        <h2>通讯录管理</h2>
+        <div class="form-group">
+          <label>筛选标签</label>
+          <input type="text" id="contactTag" placeholder="输入标签名称筛选（可选）">
+        </div>
+        <div class="form-group">
+          <label>搜索关键字</label>
+          <input type="text" id="contactKeyword" placeholder="输入联系人名称搜索（可选）">
+        </div>
+        <button class="btn btn-primary" onclick="loadContacts()">加载通讯录</button>
+        <button class="btn btn-secondary" onclick="syncContacts()">同步联系人</button>
+        <div class="result" id="contactResult"></div>
+      </div>
+
+      <div class="card">
+        <h2>通讯录列表</h2>
+        <div id="contactList" style="max-height: 400px; overflow-y: auto;">
+          <p style="color: #888; text-align: center; padding: 20px;">点击"加载通讯录"查看联系人</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI 功能 -->
+    <div class="tab-content" id="tab-features">
+      <div class="card">
+        <h2>AI 功能开关</h2>
+
+        <div class="toggle-row">
+          <div>
+            <div style="font-weight: 600;">🤖 AI 销售助手</div>
+            <div style="font-size: 12px; color: #888;">自动回复客户消息</div>
+          </div>
+          <div class="toggle" id="toggleAI" onclick="toggleAI()"></div>
+        </div>
+
+        <div class="toggle-row">
+          <div>
+            <div style="font-weight: 600;">📝 AI 朋友圈自动互动</div>
+            <div style="font-size: 12px; color: #888;">自动评论朋友圈动态</div>
+          </div>
+          <div class="toggle" id="toggleMoment" onclick="toggleMoment()"></div>
+        </div>
+
+        <div class="toggle-row">
+          <div>
+            <div style="font-weight: 600;">👤 自动通过好友</div>
+            <div style="font-size: 12px; color: #888;">收到好友请求自动通过</div>
+          </div>
+          <div class="toggle" id="toggleAutoAdd" onclick="toggleAutoAdd()"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>许可证状态</h2>
+        <button class="btn btn-primary" onclick="checkLicense()">检查许可证</button>
+        <div class="result" id="licenseResult"></div>
+      </div>
+    </div>
+
+    <!-- 操作日志 -->
+    <div class="tab-content" id="tab-logs">
+      <div class="card">
+        <h2>操作日志</h2>
+        <button class="btn btn-secondary" onclick="clearLogs()">清空日志</button>
+        <div class="log-container" id="logContainer">
+          <div class="log-entry log-info"><span class="log-time">[--:--:--]</span> 控制台已初始化</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = 'http://127.0.0.1:9922';
+    const API_KEY = 'yoko_test';
+
+    // 日志
+    function log(message, type = 'info') {
+      const container = document.getElementById('logContainer');
+      const time = new Date().toLocaleTimeString('zh-CN');
+      const entry = document.createElement('div');
+      entry.className = `log-entry log-${type}`;
+      entry.innerHTML = `<span class="log-time">[${time}]</span> ${message}`;
+      container.appendChild(entry);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function clearLogs() {
+      document.getElementById('logContainer').innerHTML = '';
+      log('日志已清空');
+    }
+
+    // 状态检查
+    async function checkStatus() {
+      try {
+        const res = await fetch(`${API_BASE}/api/agent/backend_status`, {
+          headers: { 'X-API-Key': API_KEY }
+        });
+        if (res.ok) {
+          document.getElementById('statusIndicator').className = 'status-indicator online';
+          document.getElementById('statusText').textContent = 'RPA 服务运行中';
+          log('RPA 服务连接正常', 'info');
+          return true;
+        }
+      } catch (e) {
+        document.getElementById('statusIndicator').className = 'status-indicator offline';
+        document.getElementById('statusText').textContent = 'RPA 服务未启动';
+        log('无法连接到 RPA 服务', 'error');
+      }
+      return false;
+    }
+
+    // 初始化微信
+    async function initWeChat() {
+      log('正在初始化微信...', 'info');
+      try {
+        const res = await fetch(`${API_BASE}/api/init/multi`, {
+          method: 'POST',
+          headers: { 'X-API-Key': API_KEY, 'Content-Type': 'application/json' },
+          body: '{}'
+        });
+        const data = await res.json();
+        if (res.ok) {
+          log('微信初始化成功', 'info');
+          return true;
+        } else if (data.code === 'ENV_NOT_CONFIGURED') {
+          log('需要配置微信环境', 'warn');
+          return false;
+        } else if (res.status === 401) {
+          log('软件未激活，需要激活码', 'error');
+          return false;
+        }
+      } catch (e) {
+        log('初始化失败: ' + e.message, 'error');
+      }
+      return false;
+    }
+
+    // 发送消息
+    async function sendMessage() {
+      const user = document.getElementById('msgUser').value.trim();
+      const message = document.getElementById('msgContent').value.trim();
+      const result = document.getElementById('msgResult');
+
+      if (!user || !message) {
+        result.className = 'result error show';
+        result.textContent = '请填写接收人和消息内容';
+        return;
+      }
+
+      result.className = 'result info show';
+      result.textContent = '发送中...';
+
+      try {
+        const res = await fetch(`${API_BASE}/api/chat/send_message`, {
+          method: 'POST',
+          headers: { 'X-API-Key': API_KEY, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user, message })
+        });
+
+        if (res.ok) {
+          result.className = 'result success show';
+          result.textContent = `消息发送成功！`;
+          log(`发送消息给 "${user}" 成功`, 'info');
+          document.getElementById('msgContent').value = '';
+        } else {
+          throw new Error(`HTTP ${res.status}`);
+        }
+      } catch (e) {
+        result.className = 'result error show';
+        result.textContent = '发送失败: ' + e.message;
+        log(`发送消息失败: ${e.message}`, 'error');
+      }
+    }
+
+    // 发送文件
+    async function sendFile() {
+      const user = document.getElementById('msgUser').value.trim();
+      const filePath = prompt('请输入文件完整路径:');
+      if (!user || !filePath) return;
+
+      const result = document.getElementById('msgResult');
+      result.className = 'result info show';
+      result.textContent = '发送中...';
+
+      try {
+        const res = await fetch(`${API_BASE}/api/agent/chat/send_file`, {
+          method: 'POST',
+          headers: { 'X-API-Key': API_KEY, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user, file_path: filePath })
+        });
+
+        if (res.ok) {
+          result.className = 'result success show';
+          result.textContent = '文件发送成功！';
+          log(`发送文件给 "${user}" 成功`, 'info');
+        } else {
+          throw new Error(`HTTP ${res.status}`);
+        }
+      } catch (e) {
+        result.className = 'result error show';
+        result.textContent = '发送失败: ' + e.message;
+        log(`发送文件失败: ${e.message}`, 'error');
+      }
+    }
+
+    // 发布朋友圈
+    async function postMoment() {
+      const content = document.getElementById('momentContent').value.trim();
+      const filesText = document.getElementById('momentFiles').value.trim();
+      const files = filesText ? filesText.split('\n').map(f => f.trim()).filter(f => f) : [];
+      const result = document.getElementById('momentResult');
+
+      if (!content) {
+        result.className = 'result error show';
+        result.textContent = '请填写朋友圈内容';
+        return;
+      }
+
+      result.className = 'result info show';
+      result.textContent = '发布中...';
+
+      try {
+        const res = await fetch(`${API_BASE}/api/agent/post_moment`, {
+          method: 'POST',
+          headers: { 'X-API-Key': API_KEY, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content, files })
+        });
+
+        if (res.ok) {
+          result.className = 'result success show';
+          result.textContent = '朋友圈发布成功！';
+          log('朋友圈发布成功', 'info');
+          document.getElementById('momentContent').value = '';
+          document.getElementById('momentFiles').value = '';
+        } else {
+          throw new Error(`HTTP ${res.status}`);
+        }
+      } catch (e) {
+        result.className = 'result error show';
+        result.textContent = '发布失败: ' + e.message;
+        log(`发布朋友圈失败: ${e.message}`, 'error');
+      }
+    }
+
+    // 加载通讯录
+    async function loadContacts() {
+      const tag = document.getElementById('contactTag').value.trim();
+      const keyword = document.getElementById('contactKeyword').value.trim();
+      const result = document.getElementById('contactResult');
+      const list = document.getElementById('contactList');
+
+      result.className = 'result info show';
+      result.textContent = '加载中...';
+
+      try {
+        let url = `${API_BASE}/api/contacts?`;
+        if (tag) url += `tag=${encodeURIComponent(tag)}&`;
+        if (keyword) url += `keyword=${encodeURIComponent(keyword)}&`;
+
+        const res = await fetch(url, { headers: { 'X-API-Key': API_KEY } });
+        const contacts = await res.json();
+
+        if (Array.isArray(contacts) && contacts.length > 0) {
+          result.className = 'result success show';
+          result.textContent = `共 ${contacts.length} 个联系人`;
+
+          list.innerHTML = '<table style="width:100%;border-collapse:collapse;"><tr style="background:#f8f8f8;"><th style="padding:8px;text-align:left;">名称</th><th style="padding:8px;text-align:left;">微信号</th><th style="padding:8px;text-align:left;">标签</th></tr>';
+          contacts.forEach(c => {
+            list.innerHTML += `<tr style="border-bottom:1px solid #eee;"><td style="padding:8px;">${c.name}</td><td style="padding:8px;color:#888;">${c.wxid || '-'}</td><td style="padding:8px;">${(c.tags || []).join(', ') || '-'}</td></tr>`;
+          });
+          list.innerHTML += '</table>';
+          log(`加载了 ${contacts.length} 个联系人`, 'info');
+        } else {
+          list.innerHTML = '<p style="color:#888;text-align:center;padding:20px;">暂无联系人数据</p>';
+          result.className = 'result info show';
+          result.textContent = '暂无联系人';
+        }
+      } catch (e) {
+        result.className = 'result error show';
+        result.textContent = '加载失败: ' + e.message;
+        log(`加载通讯录失败: ${e.message}`, 'error');
+      }
+    }
+
+    // 同步联系人
+    async function syncContacts() {
+      const result = document.getElementById('contactResult');
+      result.className = 'result info show';
+      result.textContent = '同步中（可能需要2分钟）...';
+      log('开始同步联系人...', 'warn');
+
+      try {
+        const res = await fetch(`${API_BASE}/api/contact/sync`, {
+          method: 'POST',
+          headers: { 'X-API-Key': API_KEY, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'friend', account_id: '' })
+        });
+
+        if (res.ok) {
+          result.className = 'result success show';
+          result.textContent = '同步完成！请重新加载通讯录';
+          log('联系人同步完成', 'info');
+        } else {
+          throw new Error(`HTTP ${res.status}`);
+        }
+      } catch (e) {
+        result.className = 'result error show';
+        result.textContent = '同步失败: ' + e.message;
+        log(`同步联系人失败: ${e.message}`, 'error');
+      }
+    }
+
+    // 检查许可证
+    async function checkLicense() {
+      const result = document.getElementById('licenseResult');
+      result.className = 'result info show';
+      result.textContent = '检查中...';
+
+      try {
+        const res = await fetch(`${API_BASE}/api/license/verify`, {
+          headers: { 'X-API-Key': API_KEY }
+        });
+        const data = await res.json();
+
+        if (res.ok && data.valid) {
+          result.className = 'result success show';
+          result.textContent = '许可证有效';
+        } else {
+          result.className = 'result error show';
+          result.textContent = '许可证无效或已过期';
+        }
+      } catch (e) {
+        result.className = 'result error show';
+        result.textContent = '检查失败: ' + e.message;
+      }
+    }
+
+    // AI 功能开关
+    async function toggleAI() {
+      const toggle = document.getElementById('toggleAI');
+      const isOn = toggle.classList.contains('on');
+      const newState = !isOn;
+
+      try {
+        let res;
+        if (newState) {
+          res = await fetch(`${API_BASE}/api/chat/multi-monitor/start`, {
+            method: 'POST',
+            headers: { 'X-API-Key': API_KEY }
+          });
+        } else {
+          res = await fetch(`${API_BASE}/api/chat/monitor/stop`, {
+            method: 'POST',
+            headers: { 'X-API-Key': API_KEY }
+          });
+        }
+
+        if (res.ok) {
+          toggle.classList.toggle('on', newState);
+          log(`AI 销售助手已${newState ? '开启' : '关闭'}`, 'info');
+        }
+      } catch (e) {
+        log(`切换 AI 功能失败: ${e.message}`, 'error');
+      }
+    }
+
+    async function toggleMoment() {
+      const toggle = document.getElementById('toggleMoment');
+      const isOn = toggle.classList.contains('on');
+      const newState = !isOn;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/moment/toggle-auto-comment`, {
+          method: 'POST',
+          headers: { 'X-API-Key': API_KEY, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enabled: newState })
+        });
+
+        if (res.ok) {
+          toggle.classList.toggle('on', newState);
+          log(`朋友圈自动评论已${newState ? '开启' : '关闭'}`, 'info');
+        }
+      } catch (e) {
+        log(`切换朋友圈自动评论失败: ${e.message}`, 'error');
+      }
+    }
+
+    async function toggleAutoAdd() {
+      const toggle = document.getElementById('toggleAutoAdd');
+      const isOn = toggle.classList.contains('on');
+      const newState = !isOn;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/friend/auto-add-new/toggle`, {
+          method: 'POST',
+          headers: { 'X-API-Key': API_KEY, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enabled: newState })
+        });
+
+        if (res.ok) {
+          toggle.classList.toggle('on', newState);
+          log(`自动通过好友已${newState ? '开启' : '关闭'}`, 'info');
+        }
+      } catch (e) {
+        log(`切换自动加好友失败: ${e.message}`, 'error');
+      }
+    }
+
+    // Tab 切换
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+      });
+    });
+
+    // 定期检查状态
+    checkStatus();
+    setInterval(checkStatus, 30000);
+  </script>
+</body>
+</html>
