@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>微信 RPA 控制台</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif; background: #f5f5f5; color: #333; }
+    
+    .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+    
+    .header { background: linear-gradient(135deg, #07c160, #1aad19); color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(7, 193, 96, 0.3); }
+    .header h1 { font-size: 24px; margin-bottom: 5px; display: flex; align-items: center; gap: 10px; }
+    .header .status { font-size: 14px; opacity: 0.9; display: flex; align-items: center; gap: 15px; }
+    .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #e74c3c; }
+    .status-dot.online { background: #27ae60; box-shadow: 0 0 8px #27ae60; }
+    
+    .card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .card h2 { font-size: 18px; margin-bottom: 15px; color: #07c160; border-left: 4px solid #07c160; padding-left: 12px; }
+    
+    .form-group { margin-bottom: 15px; }
+    .form-group label { display: block; margin-bottom: 6px; font-weight: 600; color: #555; font-size: 14px; }
+    .form-group input, .form-group textarea { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; transition: border-color 0.3s; }
+    .form-group input:focus, .form-group textarea:focus { outline: none; border-color: #07c160; box-shadow: 0 0 0 3px rgba(7, 193, 96, 0.1); }
+    .form-group textarea { resize: vertical; min-height: 80px; }
+    
+    .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.3s; }
+    .btn-primary { background: #07c160; color: white; }
+    .btn-primary:hover { background: #06ad56; transform: translateY(-1px); }
+    .btn-secondary { background: #95a5a6; color: white; }
+    .btn-secondary:hover { background: #7f8c8d; }
+    .btn-danger { background: #e74c3c; color: white; }
+    .btn-danger:hover { background: #c0392b; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    
+    .result { margin-top: 15px; padding: 15px; border-radius: 8px; display: none; font-size: 13px; }
+    .result.show { display: block; }
+    .result.success { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+    .result.error { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+    .result.info { background: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }
+    
+    .tabs { display: flex; gap: 5px; margin-bottom: 20px; flex-wrap: wrap; }
+    .tab { padding: 12px 24px; background: #e8e8e8; border: none; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.3s; }
+    .tab:hover { background: #d8d8d8; }
+    .tab.active { background: #07c160; color: white; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    
+    .toggle-row { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px solid #eee; }
+    .toggle-row:last-child { border-bottom: none; }
+    .toggle { width: 50px; height: 26px; background: #ccc; border-radius: 13px; cursor: pointer; position: relative; transition: all 0.3s; }
+    .toggle.on { background: #07c160; }
+    .toggle::after { content: ''; position: absolute; width: 22px; height: 22px; background: white; border-radius: 50%; top: 2px; left: 2px; transition: all 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+    .toggle.on::after { left: 26px; }
+    
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+    
+    .log-container { max-height: 300px; overflow-y: auto; background: #1e1e1e; color: #d4d4d4; padding: 15px; border-radius: 8px; font-family: 'Consolas', 'Monaco', monospace; font-size: 13px; }
+    .log-entry { margin-bottom: 5px; padding: 4px 0; border-bottom: 1px solid #333; }
+    .log-time { color: #888; margin-right: 10px; }
+    .log-info { color: #4ec9b0; }
+    .log-warn { color: #dcdcaa; }
+    .log-error { color: #f14c4c; }
+    .log-success { color: #6a9955; }
+    
+    .api-demo { background: #f8f9fa; padding: 15px; border-radius: 8px; margin-top: 15px; }
+    .api-demo h4 { font-size: 14px; margin-bottom: 10px; color: #333; }
+    .api-demo code { display: block; background: #2d2d2d; color: #d4d4d4; padding: 10px; border-radius: 6px; font-size: 12px; overflow-x: auto; white-space: pre-wrap; word-break: break-all; }
+    
+    .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px; }
+    .feature-item { background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center; }
+    .feature-item .icon { font-size: 28px; margin-bottom: 8px; }
+    .feature-item .name { font-weight: 600; font-size: 14px; color: #333; }
+    .feature-item .desc { font-size: 12px; color: #888; margin-top: 4px; }
+    .feature-item.enabled { background: #e8f5e9; border: 1px solid #07c160; }
+    .feature-item.disabled { background: #f5f5f5; opacity: 0.6; }
+    
+    .contact-list { max-height: 400px; overflow-y: auto; }
+    .contact-item { display: flex; align-items: center; padding: 12px; border-bottom: 1px solid #eee; cursor: pointer; transition: background 0.2s; }
+    .contact-item:hover { background: #f8f9fa; }
+    .contact-item .avatar { width: 40px; height: 40px; border-radius: 50%; background: #07c160; color: white; display: flex; align-items: center; justify-content: center; font-weight: 600; margin-right: 12px; }
+    .contact-item .name { font-weight: 600; font-size: 14px; }
+    .contact-item .remark { font-size: 12px; color: #888; }
+    
+    @media (max-width: 768px) {
+      .container { padding: 10px; }
+      .tabs { flex-wrap: wrap; }
+      .tab { flex: 1; text-align: center; padding: 10px; font-size: 13px; }
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- 头部 -->
+    <div class="header">
+      <h1>🛰 微信 RPA 控制台</h1>
+      <div class="status">
+        <span><span class="status-dot" id="statusDot"></span> <span id="statusText">检查中...</span></span>
+        <span id="version">版本 1.0.0</span>
+      </div>
+    </div>
+
+    <!-- 功能特性 -->
+    <div class="card">
+      <h2>已实现功能</h2>
+      <div class="feature-grid">
+        <div class="feature-item enabled">
+          <div class="icon">📤</div>
+          <div class="name">发送消息</div>
+          <div class="desc">发送文本给任意联系人</div>
+        </div>
+        <div class="feature-item enabled">
+          <div class="icon">📎</div>
+          <div class="name">发送文件</div>
+          <div class="desc">发送本地文件到微信</div>
+        </div>
+        <div class="feature-item enabled">
+          <div class="icon">🖼️</div>
+          <div class="name">发送图片</div>
+          <div class="desc">发送图片给联系人</div>
+        </div>
+        <div class="feature-item enabled">
+          <div class="icon">📢</div>
+          <div class="name">群发消息</div>
+          <div class="desc">一次发给多个联系人</div>
+        </div>
+        <div class="feature-item enabled">
+          <div class="icon">👥</div>
+          <div class="name">通讯录</div>
+          <div class="desc">获取好友列表</div>
+        </div>
+        <div class="feature-item enabled">
+          <div class="icon">🌍</div>
+          <div class="name">发朋友圈</div>
+          <div class="desc">自动发布朋友圈</div>
+        </div>
+        <div class="feature-item enabled">
+          <div class="icon">👍</div>
+          <div class="name">自动点赞</div>
+          <div class="desc">自动点赞朋友圈</div>
+        </div>
+        <div class="feature-item disabled">
+          <div class="icon">🤖</div>
+          <div class="name">AI 客服</div>
+          <div class="desc">需配合 AI 模型</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 标签页 -->
+    <div class="tabs">
+      <button class="tab active" data-tab="send">📤 发送消息</button>
+      <button class="tab" data-tab="contacts">👥 通讯录</button>
+      <button class="tab" data-tab="moment">🌍 朋友圈</button>
+      <button class="tab" data-tab="mass">📢 群发</button>
+      <button class="tab" data-tab="logs">📋 操作日志</button>
+    </div>
+
+    <!-- 发送消息 -->
+    <div class="tab-content active" id="tab-send">
+      <div class="grid">
+        <div class="card">
+          <h2>发送文本消息</h2>
+          <div class="form-group">
+            <label>接收人（备注名/昵称/微信号）</label>
+            <input type="text" id="msgUser" placeholder="输入联系人名称">
+          </div>
+          <div class="form-group">
+            <label>消息内容</label>
+            <textarea id="msgContent" placeholder="输入要发送的消息"></textarea>
+          </div>
+          <button class="btn btn-primary" onclick="sendMessage()">发送消息</button>
+          
+          <div class="result" id="msgResult"></div>
+          
+          <div class="api-demo">
+            <h4>API 调用示例（cURL）</h4>
+            <code id="sendMsgApi"></code>
+          </div>
+        </div>
+        
+        <div class="card">
+          <h2>发送文件/图片</h2>
+          <div class="form-group">
+            <label>接收人</label>
+            <input type="text" id="fileUser" placeholder="输入联系人名称">
+          </div>
+          <div class="form-group">
+            <label>文件路径</label>
+            <input type="text" id="filePath" placeholder="如: C:\docs\report.xlsx">
+          </div>
+          <button class="btn btn-primary" onclick="sendFile()">发送文件</button>
+          <button class="btn btn-secondary" onclick="sendImage()">发送图片</button>
+          
+          <div class="result" id="fileResult"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 通讯录 -->
+    <div class="tab-content" id="tab-contacts">
+      <div class="card">
+        <h2>通讯录管理</h2>
+        <div class="form-group">
+          <label>搜索联系人</label>
+          <input type="text" id="searchContact" placeholder="输入联系人名称搜索">
+        </div>
+        <button class="btn btn-primary" onclick="loadContacts()">加载通讯录</button>
+        <button class="btn btn-secondary" onclick="syncContacts()">同步通讯录</button>
+        
+        <div class="result" id="contactResult"></div>
+        
+        <div class="contact-list" id="contactList">
+          <p style="color: #888; text-align: center; padding: 40px;">点击"加载通讯录"查看联系人</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 朋友圈 -->
+    <div class="tab-content" id="tab-moment">
+      <div class="card">
+        <h2>发布朋友圈</h2>
+        <div class="form-group">
+          <label>文字内容</label>
+          <textarea id="momentContent" rows="4" placeholder="输入朋友圈文字"></textarea>
+        </div>
+        <div class="form-group">
+          <label>图片路径（每行一个，最多9张）</label>
+          <textarea id="momentFiles" rows="3" placeholder="C:\images\photo1.jpg&#10;C:\images\photo2.jpg"></textarea>
+        </div>
+        <button class="btn btn-primary" onclick="postMoment()">发布朋友圈</button>
+        
+        <div class="result" id="momentResult"></div>
+      </div>
+      
+      <div class="card">
+        <h2>自动点赞</h2>
+        <div class="form-group">
+          <label>点赞数量</label>
+          <input type="number" id="likeCount" value="10" min="1" max="100">
+        </div>
+        <button class="btn btn-primary" onclick="autoLike()">开始点赞</button>
+        
+        <div class="result" id="likeResult"></div>
+      </div>
+    </div>
+
+    <!-- 群发 -->
+    <div class="tab-content" id="tab-mass">
+      <div class="card">
+        <h2>群发消息</h2>
+        <div class="form-group">
+          <label>接收人列表（每行一个）</label>
+          <textarea id="massUsers" rows="5" placeholder="好友1&#10;好友2&#10;好友3"></textarea>
+        </div>
+        <div class="form-group">
+          <label>消息内容</label>
+          <textarea id="massMessage" rows="3" placeholder="输入要群发的消息"></textarea>
+        </div>
+        <button class="btn btn-primary" onclick="massSend()">开始群发</button>
+        <button class="btn btn-secondary" onclick="massSendAll()">发给所有人</button>
+        
+        <div class="result" id="massResult"></div>
+      </div>
+    </div>
+
+    <!-- 操作日志 -->
+    <div class="tab-content" id="tab-logs">
+      <div class="card">
+        <h2>操作日志</h2>
+        <button class="btn btn-secondary" onclick="clearLogs()">清空日志</button>
+        <div class="log-container" id="logContainer">
+          <div class="log-entry">
+            <span class="log-time">--:--:--</span>
+            <span class="log-info">控制台已就绪</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="card">
+        <h2>API 文档</h2>
+        <div class="api-demo">
+          <h4>基础配置</h4>
+          <code>Base URL: http://127.0.0.1:9922
+API Key Header: X-API-Key: wechat_rpa_key_2025</code>
+        </div>
+        <div class="api-demo">
+          <h4>发送消息</h4>
+          <code>POST /api/chat/send_message
+Content-Type: application/json
+
+{
+  "user": "张三",
+  "message": "你好，这是一条测试消息"
+}</code>
+        </div>
+        <div class="api-demo">
+          <h4>群发消息</h4>
+          <code>POST /api/agent/mass_sending
+Content-Type: application/json
+
+{
+  "users": ["张三", "李四", "王五"],
+  "message": "这是群发消息"
+}</code>
+        </div>
+        <div class="api-demo">
+          <h4>发布朋友圈</h4>
+          <code>POST /api/agent/post_moment
+Content-Type: application/json
+
+{
+  "content": "今天天气真好！",
+  "files": ["C:\\images\\photo.jpg"]
+}</code>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // API 配置
+    const API_BASE = 'http://127.0.0.1:9922';
+    const API_KEY = 'wechat_rpa_key_2025';
+
+    // 标签页切换
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+      });
+    });
+
+    // API 请求
+    async function apiRequest(endpoint, method = 'GET', data = null) {
+      const options = {
+        method,
+        headers: {
+          'X-API-Key': API_KEY,
+          'Content-Type': 'application/json'
+        }
+      };
+      if (data) options.body = JSON.stringify(data);
+      
+      try {
+        const resp = await fetch(API_BASE + endpoint, options);
+        return await resp.json();
+      } catch (e) {
+        return { success: false, message: '请求失败: ' + e.message };
+      }
+    }
+
+    // 日志
+    function addLog(msg, type = 'info') {
+      const container = document.getElementById('logContainer');
+      const time = new Date().toLocaleTimeString();
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      entry.innerHTML = `<span class="log-time">${time}</span><span class="log-${type}">${msg}</span>`;
+      container.appendChild(entry);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function showResult(id, result, isError = false) {
+      const el = document.getElementById(id);
+      el.className = 'result show ' + (isError || !result.success ? 'error' : 'success');
+      el.textContent = result.message || JSON.stringify(result);
+      setTimeout(() => el.classList.remove('show'), 5000);
+    }
+
+    function clearLogs() {
+      document.getElementById('logContainer').innerHTML = '';
+      addLog('日志已清空');
+    }
+
+    // 初始化
+    async function init() {
+      try {
+        const health = await apiRequest('/health');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        
+        if (health.status === 'ok') {
+          statusDot.classList.add('online');
+          statusText.textContent = '服务已就绪';
+          addLog('Web 服务已连接');
+        } else {
+          statusText.textContent = '服务异常';
+          addLog('Web 服务连接失败', 'error');
+        }
+      } catch (e) {
+        document.getElementById('statusText').textContent = '服务未启动';
+        addLog('请先运行: python src/web/server.py', 'error');
+      }
+      
+      // 显示示例 API
+      document.getElementById('sendMsgApi').textContent = 
+        `curl -X POST http://127.0.0.1:9922/api/chat/send_message \\
+  -H "Content-Type: application/json" \\
+  -H "X-API-Key: wechat_rpa_key_2025" \\
+  -d "{\\"user\\":\\"文件传输助手\\",\\"message\\":\\"你好\\"}"`;
+    }
+
+    // 发送消息
+    async function sendMessage() {
+      const user = document.getElementById('msgUser').value.trim();
+      const message = document.getElementById('msgContent').value.trim();
+      if (!user || !message) {
+        showResult('msgResult', { success: false, message: '请填写联系人和消息内容' }, true);
+        return;
+      }
+      
+      addLog(`发送消息给 ${user}...`);
+      const result = await apiRequest('/api/chat/send_message', 'POST', { user, message });
+      showResult('msgResult', result, !result.success);
+      addLog(result.success ? `✓ 消息已发送给 ${user}` : `✗ 发送失败: ${result.message}`, result.success ? 'success' : 'error');
+    }
+
+    // 发送文件
+    async function sendFile() {
+      const user = document.getElementById('fileUser').value.trim();
+      const filePath = document.getElementById('filePath').value.trim();
+      if (!user || !filePath) {
+        showResult('fileResult', { success: false, message: '请填写联系人和文件路径' }, true);
+        return;
+      }
+      
+      addLog(`发送文件给 ${user}...`);
+      const result = await apiRequest('/api/agent/chat/send_file', 'POST', { user, file_path: filePath });
+      showResult('fileResult', result, !result.success);
+      addLog(result.success ? `✓ 文件已发送给 ${user}` : `✗ 发送失败: ${result.message}`, result.success ? 'success' : 'error');
+    }
+
+    // 发送图片
+    async function sendImage() {
+      const user = document.getElementById('fileUser').value.trim();
+      const imagePath = document.getElementById('filePath').value.trim();
+      if (!user || !imagePath) {
+        showResult('fileResult', { success: false, message: '请填写联系人和图片路径' }, true);
+        return;
+      }
+      
+      addLog(`发送图片给 ${user}...`);
+      const result = await apiRequest('/api/agent/chat/send_image', 'POST', { user, image_path: imagePath });
+      showResult('fileResult', result, !result.success);
+      addLog(result.success ? `✓ 图片已发送给 ${user}` : `✗ 发送失败: ${result.message}`, result.success ? 'success' : 'error');
+    }
+
+    // 加载通讯录
+    async function loadContacts() {
+      addLog('加载通讯录...');
+      const result = await apiRequest('/api/contacts');
+      const list = document.getElementById('contactList');
+      
+      if (result.success && result.contacts && result.contacts.length > 0) {
+        list.innerHTML = result.contacts.map(c => 
+          `<div class="contact-item" onclick="document.getElementById('msgUser').value='${c.name || c.remark || c.wxid}'; document.getElementById('tab-send').classList.add('active'); document.querySelector('[data-tab=send]').click();">
+            <div class="avatar">${(c.name || '?').charAt(0)}</div>
+            <div>
+              <div class="name">${c.name || '未知'}</div>
+              <div class="remark">${c.remark || ''}</div>
+            </div>
+          </div>`
+        ).join('');
+        addLog(`✓ 加载了 ${result.count} 个联系人`, 'success');
+      } else {
+        list.innerHTML = '<p style="color: #888; text-align: center; padding: 40px;">通讯录为空，请确保微信已打开并加载完成</p>';
+        addLog('通讯录为空', 'warn');
+      }
+      
+      showResult('contactResult', result, !result.success);
+    }
+
+    // 同步通讯录
+    async function syncContacts() {
+      addLog('同步通讯录...');
+      const result = await apiRequest('/api/contact/sync', 'POST');
+      showResult('contactResult', result, !result.success);
+      addLog(result.success ? `✓ 同步完成: ${result.count} 个联系人` : `✗ 同步失败`, result.success ? 'success' : 'error');
+    }
+
+    // 发布朋友圈
+    async function postMoment() {
+      const content = document.getElementById('momentContent').value.trim();
+      const filesText = document.getElementById('momentFiles').value.trim();
+      const files = filesText ? filesText.split('\n').filter(f => f.trim()) : [];
+      
+      addLog('发布朋友圈...');
+      const result = await apiRequest('/api/agent/post_moment', 'POST', { content, files });
+      showResult('momentResult', result, !result.success);
+      addLog(result.success ? '✓ 朋友圈已发布' : `✗ 发布失败: ${result.message}`, result.success ? 'success' : 'error');
+    }
+
+    // 自动点赞
+    async function autoLike() {
+      const count = parseInt(document.getElementById('likeCount').value) || 10;
+      addLog(`开始自动点赞 (${count} 条)...`);
+      // TODO: 调用实际 API
+      showResult('likeResult', { success: true, message: `点赞功能开发中...` });
+      addLog('点赞功能需要 AI 配合', 'warn');
+    }
+
+    // 群发消息
+    async function massSend() {
+      const usersText = document.getElementById('massUsers').value.trim();
+      const message = document.getElementById('massMessage').value.trim();
+      
+      if (!usersText || !message) {
+        showResult('massResult', { success: false, message: '请填写接收人和消息内容' }, true);
+        return;
+      }
+      
+      const users = usersText.split('\n').filter(u => u.trim());
+      
+      addLog(`开始群发给 ${users.length} 个用户...`);
+      const result = await apiRequest('/api/agent/mass_sending', 'POST', { users, message });
+      
+      if (result.success) {
+        showResult('massResult', { success: true, message: `群发完成: 成功 ${result.sent.length} 个，失败 ${result.failed.length} 个` });
+        addLog(`✓ 群发完成: ${result.sent.length} 成功, ${result.failed.length} 失败`, 'success');
+      } else {
+        showResult('massResult', result, true);
+        addLog(`✗ 群发失败: ${result.message}`, 'error');
+      }
+    }
+
+    async function massSendAll() {
+      addLog('获取所有人...');
+      const contacts = await apiRequest('/api/contacts');
+      if (contacts.success && contacts.contacts) {
+        const allUsers = contacts.contacts.map(c => c.name || c.remark).filter(n => n);
+        document.getElementById('massUsers').value = allUsers.join('\n');
+        addLog(`✓ 已加载 ${allUsers.length} 个联系人到群发列表`, 'success');
+      }
+    }
+
+    // 页面加载
+    init();
+  </script>
+</body>
+</html>

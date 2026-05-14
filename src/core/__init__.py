@@ -1,0 +1,1 @@
+# WeChatRPA Core Module

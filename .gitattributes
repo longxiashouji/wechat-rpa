@@ -1,0 +1,6 @@
+*.md text=working-tree eol=lf
+*.py text=working-tree eol=lf
+*.html text=working-tree eol=lf
+*.json text=working-tree eol=lf
+*.bat text=working-tree eol=lf
+*.txt text=working-tree eol=lf
